@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "tobiasz-p.market-tracker",
+  "name": "Market Tracker",
+  "version": "1.0.0",
+  "author": "tobiasz-p",
+  "license": "MIT",
+  "description": "Feature-packed market tracker: live quotes with sparklines, watchlist with portfolio tracking, analyst recommendations, and news.",
+  "kinds": [
+    "bar-widget"
+  ],
+  "entryPoints": {
+    "barWidget": "BarWidget.qml"
+  },
+  "barWidget": {
+    "displayName": "Market Tracker",
+    "description": "Live market quotes with sparklines, charts, watchlist, portfolio tracking, and configurable detail sections.",
+    "category": "Finance",
+    "allowMultiple": false,
+    "defaultSection": "right"
+  }
+}
