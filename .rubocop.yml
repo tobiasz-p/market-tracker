@@ -1,0 +1,95 @@
+# frozen_string_literal: true
+
+plugins:
+  - rubocop-performance
+  - rubocop-rake
+  - rubocop-rspec
+
+AllCops:
+  NewCops: enable
+  SuggestExtensions: false
+  Exclude:
+    - "vendor/**/*"
+    - "tmp/**/*"
+    - ".gemini/**/*"
+
+Layout/ExtraSpacing:
+  AllowForAlignment: false
+
+Layout/HashAlignment:
+  Enabled: false
+
+Layout/LineLength:
+  Max: 120
+
+Metrics/AbcSize:
+  Max: 20
+
+Metrics/BlockLength:
+  CountAsOne:
+    - array
+    - hash
+    - heredoc
+    - method_call
+  Exclude:
+    - "spec/**/*_spec.rb"
+    - "Rakefile"
+
+Metrics/ClassLength:
+  Max: 190
+  CountAsOne:
+    - array
+    - hash
+    - heredoc
+    - method_call
+
+Metrics/CyclomaticComplexity:
+  Max: 10
+
+Metrics/MethodLength:
+  Max: 25
+  CountAsOne:
+    - array
+    - hash
+    - heredoc
+    - method_call
+
+Metrics/ModuleLength:
+  Max: 175
+  CountAsOne:
+    - array
+    - hash
+    - heredoc
+    - method_call
+
+RSpec/ExampleLength:
+  Max: 15
+
+RSpec/IndexedLet:
+  Enabled: false
+
+RSpec/MultipleMemoizedHelpers:
+  Max: 10
+
+RSpec/NestedGroups:
+  Max: 5
+
+Style/Documentation:
+  Enabled: true
+  Exclude:
+    - "spec/**/*_spec.rb"
+    - "Rakefile"
+
+Style/GlobalVars:
+  Exclude:
+    - "daemon/daemon.rb"
+    - "spec/daemon_spec.rb"
+
+Style/HashSyntax:
+  EnforcedShorthandSyntax: always
+
+Style/StringLiterals:
+  EnforcedStyle: double_quotes
+
+Style/StringLiteralsInInterpolation:
+  EnforcedStyle: double_quotes
