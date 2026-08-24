@@ -31,6 +31,9 @@ class Config
   REFRESH_MAX = 300
   ROTATE_MIN = 2
   ROTATE_MAX = 300
+  MAX_SYMBOLS = 30
+  TICKER_PATTERN = /\A[A-Z0-9.\-_:^]{1,20}\z/
+  MAX_SHARES = 1_000_000_000.0
   FALSY_VALUES = %w[false 0 no off].freeze
 
   def initialize(env = ENV)
@@ -147,16 +150,33 @@ class Config
   end
 
   def parse_symbols(raw)
-    raw.to_s.split(",").map(&:strip).reject(&:empty?).map do |item|
-      build_symbol_entry(item)
+    entries = []
+    seen = {}
+    raw.to_s.split(",").each do |item|
+      entry = build_symbol_entry(item.strip)
+      next unless entry && !seen[entry.ticker]
+
+      seen[entry.ticker] = true
+      entries << entry
+      break if entries.length >= MAX_SYMBOLS
     end
+    entries.freeze
   end
 
   def build_symbol_entry(item)
-    parts = item.to_s.split(":").map(&:strip)
-    shares = parts.last&.match?(/\A\d+(\.\d+)?\z/) ? parts.pop.to_f : nil
+    return nil if item.empty?
+
+    parts = item.split(":").map(&:strip)
+    shares = nil
+    if parts.length >= 2 && parts.last.match?(/\A-?\d+(\.\d+)?\z/)
+      raw_shares = parts.pop.to_f
+      shares = raw_shares if raw_shares.positive? && raw_shares <= MAX_SHARES
+    end
+
     ticker = parts.join(":").upcase
-    SymbolEntry.new(ticker:, shares: shares&.positive? ? shares : nil)
+    return nil unless ticker.match?(TICKER_PATTERN)
+
+    SymbolEntry.new(ticker:, shares:)
   end
 
   def truthy_flag?(raw)

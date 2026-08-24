@@ -95,18 +95,55 @@ BarWidget {
   }
   property string envFileKey: ""
 
+  function sanitizeQuote(data) {
+    if (!data || typeof data !== "object") return null
+    var sym = String(data.symbol || "").trim().toUpperCase()
+    if (!sym || !root.tickerRegex.test(sym) || root.symbolList.indexOf(sym) === -1) return null
+
+    var sparkline = []
+    if (Array.isArray(data.sparkline)) {
+      for (var i = 0; i < Math.min(data.sparkline.length, root.maxSparklinePoints); i++) {
+        var pt = Number(data.sparkline[i])
+        if (isFinite(pt)) sparkline.push(pt)
+      }
+    }
+
+    return {
+      type: "quote",
+      symbol: sym,
+      name: String(data.name || "").slice(0, root.maxNameLength),
+      price: typeof data.price === "number" && isFinite(data.price) ? data.price : null,
+      priceFmt: String(data.priceFmt || "---").slice(0, root.maxFormatLength),
+      change: typeof data.change === "number" && isFinite(data.change) ? data.change : 0,
+      changePct: typeof data.changePct === "number" && isFinite(data.changePct) ? data.changePct : 0,
+      changeFmt: String(data.changeFmt || "0.00%").slice(0, root.maxFormatLength),
+      prevClose: typeof data.prevClose === "number" && isFinite(data.prevClose) ? data.prevClose : null,
+      dayHigh: typeof data.dayHigh === "number" && isFinite(data.dayHigh) ? data.dayHigh : null,
+      dayLow: typeof data.dayLow === "number" && isFinite(data.dayLow) ? data.dayLow : null,
+      shares: typeof data.shares === "number" && isFinite(data.shares) ? data.shares : null,
+      portfolioValue: typeof data.portfolioValue === "number" && isFinite(data.portfolioValue) ? data.portfolioValue : null,
+      portfolioChange: typeof data.portfolioChange === "number" && isFinite(data.portfolioChange) ? data.portfolioChange : null,
+      barLabel: String(data.barLabel || "").slice(0, root.maxNameLength),
+      tooltip: String(data.tooltip || "").slice(0, root.maxTooltipLength),
+      sparkline: sparkline,
+      volumeFmt: String(data.volumeFmt || "---").slice(0, root.maxSymbolLength),
+      fetchedAt: typeof data.fetchedAt === "number" && isFinite(data.fetchedAt) ? data.fetchedAt : 0
+    }
+  }
+
   function handleLine(raw) {
     var line = String(raw || "").trim()
-    if (!line) return
+    if (!line || line.length > root.maxLineLength) return
     try {
       var data = JSON.parse(line)
+      if (!data || typeof data !== "object") return
       if (data.type === "ready") { root.daemonReady = true; return }
       if (data.type === "quote") {
         root.fetching = false
-        var sym = String(data.symbol || "")
-        if (!sym) return
+        var cleanQuote = root.sanitizeQuote(data)
+        if (!cleanQuote) return
         var updated = Object.assign({}, root.quotes)
-        updated[sym] = data
+        updated[cleanQuote.symbol] = cleanQuote
         root.quotes = updated
         root.dataChanged()
         return
@@ -117,21 +154,42 @@ BarWidget {
       }
       if (data.type === "error") {
         root.fetching = false
-        var errSym = String(data.symbol || "*")
-        root.lastError = (errSym !== "*" ? errSym + ": " : "") + String(data.message || "unknown error")
+        var errSym = String(data.symbol || "*").slice(0, root.maxSymbolLength)
+        var errMsg = String(data.message || "unknown error").slice(0, root.maxErrorMsgLength)
+        root.lastError = (errSym !== "*" ? errSym + ": " : "") + errMsg
         root.dataChanged()
       }
     } catch (e) {}
   }
 
+  readonly property int maxSymbols: 30
+  readonly property var tickerRegex: /^[A-Z0-9.\-_:^]{1,20}$/
+
+  readonly property int maxLineLength: 65536
+  readonly property int maxSparklinePoints: 60
+  readonly property int maxNameLength: 100
+  readonly property int maxFormatLength: 30
+  readonly property int maxTooltipLength: 500
+  readonly property int maxSymbolLength: 20
+  readonly property int maxErrorMsgLength: 200
+
   function parseSymbolList(raw) {
-    return String(raw || "").split(",").map(function(s) {
-      var parts = s.trim().split(":")
+    var rawList = String(raw || "").split(",")
+    var result = []
+    var seen = {}
+    for (var i = 0; i < rawList.length; i++) {
+      var parts = rawList[i].trim().split(":")
       if (parts.length >= 2 && !isNaN(parseFloat(parts[parts.length - 1])) && isFinite(parts[parts.length - 1])) {
         parts.pop()
       }
-      return parts.join(":").trim().toUpperCase()
-    }).filter(function(s) { return s.length > 0 })
+      var sym = parts.join(":").trim().toUpperCase()
+      if (sym && root.tickerRegex.test(sym) && !seen[sym]) {
+        seen[sym] = true
+        result.push(sym)
+        if (result.length >= root.maxSymbols) break
+      }
+    }
+    return result
   }
 
   signal dataChanged()

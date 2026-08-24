@@ -59,6 +59,62 @@ RSpec.describe Config do
         expect(symbols.last.shares).to be_nil
       end
     end
+
+    context "when symbols contain disallowed characters or formatting" do
+      let(:env) { { "SYMBOLS" => "VOO, <script>alert(1)</script>, AAPL;rm, MSFT" } }
+
+      it "filters out invalid tickers" do
+        expect(symbols.map(&:ticker)).to eq(%w[VOO MSFT])
+      end
+    end
+
+    context "when ticker exceeds maximum length limit" do
+      let(:env) { { "SYMBOLS" => "ABCDEFGHIJKLMNOPQRSTUVW, VOO" } }
+
+      it "rejects tickers longer than 20 characters" do
+        expect(symbols.map(&:ticker)).to eq(%w[VOO])
+      end
+    end
+
+    context "when symbols list contains duplicate entries" do
+      let(:env) { { "SYMBOLS" => "VOO:10, AAPL, VOO:5" } }
+
+      it "deduplicates tickers" do
+        expect(symbols.map(&:ticker)).to eq(%w[VOO AAPL])
+      end
+
+      it "preserves configuration of the first occurrence" do
+        expect(symbols.first.shares).to eq(10.0)
+      end
+    end
+
+    context "when symbols count exceeds MAX_SYMBOLS limit" do
+      let(:env) { { "SYMBOLS" => (1..40).map { |i| "SYM#{i}" }.join(", ") } }
+
+      it "caps symbols at MAX_SYMBOLS" do
+        expect(symbols.length).to eq(30)
+      end
+
+      it "keeps initial symbols up to limit" do
+        expect(symbols.last.ticker).to eq("SYM30")
+      end
+    end
+
+    context "when shares count is non-positive" do
+      let(:env) { { "SYMBOLS" => "VOO:-5, AAPL:0" } }
+
+      it "ignores non-positive share counts" do
+        expect(symbols.map(&:shares)).to eq([nil, nil])
+      end
+    end
+
+    context "when shares count is non-numeric" do
+      let(:env) { { "SYMBOLS" => "MSFT:abc" } }
+
+      it "does not parse non-numeric shares" do
+        expect(symbols.first.shares).to be_nil
+      end
+    end
   end
 
   describe "#tickers" do
@@ -130,7 +186,7 @@ RSpec.describe Config do
       let(:env) { { "REFRESH_SECONDS" => "5" } }
 
       it "clamps to minimum allowed bound" do
-        expect(refresh_seconds).to eq(Config::REFRESH_MIN)
+        expect(refresh_seconds).to eq(15)
       end
     end
 
@@ -138,7 +194,7 @@ RSpec.describe Config do
       let(:env) { { "REFRESH_SECONDS" => "500" } }
 
       it "clamps to maximum allowed bound" do
-        expect(refresh_seconds).to eq(Config::REFRESH_MAX)
+        expect(refresh_seconds).to eq(300)
       end
     end
 
