@@ -28,7 +28,7 @@ Clicking the bar widget expands the slide-out financial dashboard:
 - **Live News Feed**: Recent headline feed with relative timestamps and 1-click links to full articles.
 
 <p align="center">
-  <img src="docs/assets/dashboard-full.png" alt="Full Analytics Dashboard" width="480" />
+  <img src="preview.png" alt="Full Analytics Dashboard" width="480" />
 </p>
 
 ### 3. Privacy-First Stealth Mode
