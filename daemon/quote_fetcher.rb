@@ -7,6 +7,7 @@ require_relative "constants"
 class QuoteFetcher < BaseFetcher
   SPARKLINE_POINTS = 60
   BUFFER_LIMIT = 240
+  MAX_PRICE_BUFFERS = 50
 
   ERROR_NO_DATA = "No data for this symbol (check the ticker)"
   ERROR_INVALID_QUOTE = "Invalid quote data"
@@ -67,15 +68,19 @@ class QuoteFetcher < BaseFetcher
   end
 
   def sparkline_for(symbol, data)
+    price_buffers.shift while price_buffers.size >= MAX_PRICE_BUFFERS && !price_buffers.key?(symbol)
     buffer = price_buffers[symbol]
+    update_buffer(buffer, data)
+    sample(buffer)
+  end
+
+  def update_buffer(buffer, data)
     if buffer.empty?
       buffer.concat(seed_checkpoints(data))
     else
       buffer << data["c"].to_f.round(4)
       buffer.shift while buffer.length > BUFFER_LIMIT
     end
-
-    sample(buffer)
   end
 
   def price_buffers

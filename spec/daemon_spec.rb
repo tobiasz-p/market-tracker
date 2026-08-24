@@ -81,10 +81,6 @@ RSpec.describe Daemon do
   describe "#handle_command" do
     subject(:handle_command) { daemon.handle_command(command) }
 
-    before do
-      allow(Thread).to receive(:new).and_yield
-    end
-
     context "when command is fetch_detail" do
       let(:command) { { "action" => "fetch_detail", "symbol" => "NVDA" } }
 
@@ -96,6 +92,28 @@ RSpec.describe Daemon do
       it "dispatches fetch_detail with target symbol" do
         expect(daemon).to have_received(:fetch_detail).with("NVDA")
       end
+    end
+  end
+
+  describe "#perform_detail_fetch" do
+    subject(:perform_detail_fetch) { daemon.perform_detail_fetch("NVDA") }
+
+    let(:profile_fetcher) { instance_double(ProfileFetcher, fetch: { type: "profile", symbol: "NVDA" }) }
+    let(:news_fetcher) { instance_double(NewsFetcher, fetch: { type: "news", symbol: "NVDA" }) }
+    let(:recommendation_fetcher) do
+      instance_double(RecommendationFetcher, fetch: { type: "recommendations", symbol: "NVDA" })
+    end
+
+    before do
+      allow(ProfileFetcher).to receive(:new).and_return(profile_fetcher)
+      allow(NewsFetcher).to receive(:new).and_return(news_fetcher)
+      allow(RecommendationFetcher).to receive(:new).and_return(recommendation_fetcher)
+      perform_detail_fetch
+    end
+
+    it "emits profile, news, and recommendations payloads" do
+      lines = stdout_buffer.string.lines.map(&:strip).reject(&:empty?)
+      expect(lines.length).to eq(3)
     end
   end
 end

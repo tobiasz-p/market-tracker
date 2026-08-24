@@ -58,6 +58,18 @@ RSpec.describe Cache do
         expect(cached_value).to eq("forced_value")
       end
     end
+
+    context "when entries exceed max_entries limit" do
+      let(:cache) { described_class.new(default_ttl: 60, max_entries: 2, clock:) }
+
+      it "evicts oldest entries to enforce capacity limit" do
+        cache.get("key_1") { "val_1" }
+        cache.get("key_2") { "val_2" }
+        cache.get("key_3") { "val_3" }
+
+        expect(cache.get("key_1") { "val_1_recomputed" }).to eq("val_1_recomputed")
+      end
+    end
   end
 
   describe "#invalidate_all" do

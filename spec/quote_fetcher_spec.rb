@@ -47,6 +47,45 @@ RSpec.describe QuoteFetcher do
       it "calculates daily dollar change" do
         expect(quote[:change]).to eq(2.5)
       end
+
+      it "generates sparkline points" do
+        expect(quote[:sparkline]).to be_an(Array)
+      end
+    end
+
+    context "when tracking more symbols than MAX_PRICE_BUFFERS" do
+      let(:quote_payload) do
+        { c: 100.0, d: 1.0, dp: 1.0, h: 101.0, l: 99.0, o: 100.0, pc: 99.0, t: 1_700_000_000 }
+      end
+
+      before do
+        (1..55).each do |i|
+          sym = "SYM#{i}"
+          allow(client).to receive(:get).with("/quote?symbol=#{sym}")
+                                        .and_return(mock_response(code: 200, body: quote_payload))
+          allow(client).to receive(:get).with("/search?q=#{sym}")
+                                        .and_return(mock_response(code: 200, body: { result: [] }))
+          fetcher.fetch(sym)
+        end
+      end
+
+      it "successfully fetches without error" do
+        result = fetcher.fetch("SYM55")
+        expect(result[:type]).to eq("quote")
+      end
+    end
+
+    context "when quote payload is invalid or empty" do
+      before do
+        allow(client).to receive(:get).with("/quote?symbol=NVDA")
+                                      .and_return(mock_response(code: 200, body: { c: 0, pc: nil }))
+        allow(client).to receive(:get).with("/search?q=NVDA")
+                                      .and_return(mock_response(code: 200, body: { result: [] }))
+      end
+
+      it "returns error payload" do
+        expect(quote[:type]).to eq("error")
+      end
     end
 
     context "when quote API returns error status" do
@@ -63,6 +102,23 @@ RSpec.describe QuoteFetcher do
 
       it "includes symbol in error" do
         expect(quote[:symbol]).to eq("NVDA")
+      end
+    end
+
+    context "when search API fails to resolve company name" do
+      let(:quote_payload) do
+        { c: 125.5, d: 2.5, dp: 2.03, h: 126.0, l: 122.0, o: 123.0, pc: 123.0, t: 1_700_000_000 }
+      end
+
+      before do
+        allow(client).to receive(:get).with("/quote?symbol=NVDA")
+                                      .and_return(mock_response(code: 200, body: quote_payload))
+        allow(client).to receive(:get).with("/search?q=NVDA")
+                                      .and_return(mock_response(code: 500, body: "Server Error"))
+      end
+
+      it "sets company name to nil" do
+        expect(quote[:name]).to be_nil
       end
     end
   end

@@ -27,17 +27,20 @@ class Daemon
 
   ACTION_REFRESH = "refresh"
   ACTION_FETCH_DETAIL = "fetch_detail"
+  MAX_QUEUED_DETAILS = 4
 
   def initialize(config:)
     @config = config
     @force_refresh = false
     @cache = Cache.new(default_ttl: DEFAULT_CACHE_TTL)
     @logger = AppLogger.new
+    @detail_queue = SizedQueue.new(MAX_QUEUED_DETAILS)
 
     init_synchronization
   end
 
   def run
+    start_detail_worker
     start_stdin_thread
     emit(type: Constants::TYPE_READY, config: config.snapshot)
     run_fast_cycle
@@ -61,20 +64,26 @@ class Daemon
 
   def fetch_detail(symbol)
     clean_symbol = symbol.to_s.upcase.strip
-    return if clean_symbol.empty?
+    return unless clean_symbol.match?(Config::TICKER_PATTERN)
 
-    Thread.new do
-      emit_profile(clean_symbol)
-      emit_news(clean_symbol)
-      emit_recommendations(clean_symbol)
-    end
+    @detail_queue.push(clean_symbol, true)
+  rescue ThreadError
+    # Queue is full, discard excessive rapid requests
   end
 
   def handle_command(command)
     case command["action"]
     when ACTION_REFRESH then trigger_refresh
-    when ACTION_FETCH_DETAIL then Thread.new { fetch_detail(command["symbol"]) }
+    when ACTION_FETCH_DETAIL then fetch_detail(command["symbol"])
     end
+  end
+
+  def perform_detail_fetch(symbol)
+    emit_profile(symbol)
+    emit_news(symbol)
+    emit_recommendations(symbol)
+  rescue StandardError => e
+    logger.error("Detail fetch error for #{symbol}: #{e.message}")
   end
 
   private
@@ -192,6 +201,18 @@ class Daemon
       @cycle_cv.wait(@cycle_mutex, config.refresh_seconds)
       @force_refresh = false
     end
+  end
+
+  def start_detail_worker
+    thread = Thread.new do
+      loop do
+        symbol = @detail_queue.pop
+        break if symbol == :stop
+
+        perform_detail_fetch(symbol)
+      end
+    end
+    thread.abort_on_exception = false
   end
 
   def start_stdin_thread
