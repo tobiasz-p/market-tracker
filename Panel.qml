@@ -29,6 +29,15 @@ Panel {
   property string activeSymbol: ""
   property int activeIndex: 0
 
+  readonly property int maxSymbolLength: 20
+  readonly property int maxNameLength: 100
+  readonly property int maxIndustryLength: 50
+  readonly property int maxFormatLength: 30
+  readonly property int maxCurrencyLength: 10
+  readonly property int maxUrlLength: 200
+  readonly property int maxLongUrlLength: 500
+  readonly property int maxHeadlineCount: 10
+
   function open()  { reload(); root.controller.show() }
   function close() { root.controller.hide() }
   function toggle() { if (root.opened) root.close(); else root.open() }
@@ -41,15 +50,80 @@ Panel {
   }
   function refresh() { if (root.hostWidget) root.hostWidget.forceRefresh() }
 
+  function sanitizeProfile(data) {
+    if (!data || typeof data !== "object") return {}
+    return {
+      type: "profile",
+      symbol: String(data.symbol || "").slice(0, root.maxSymbolLength),
+      name: String(data.name || "").slice(0, root.maxNameLength),
+      industry: String(data.industry || "ETF / Fund").slice(0, root.maxIndustryLength),
+      marketCap: typeof data.marketCap === "number" && isFinite(data.marketCap) ? data.marketCap : null,
+      marketCapFmt: String(data.marketCapFmt || "—").slice(0, root.maxFormatLength),
+      currency: String(data.currency || "USD").slice(0, root.maxCurrencyLength),
+      exchange: String(data.exchange || "").slice(0, root.maxSymbolLength),
+      weburl: String(data.weburl || "").slice(0, root.maxUrlLength),
+      high52: typeof data.high52 === "number" && isFinite(data.high52) ? data.high52 : null,
+      low52: typeof data.low52 === "number" && isFinite(data.low52) ? data.low52 : null,
+      return52: typeof data.return52 === "number" && isFinite(data.return52) ? data.return52 : null,
+      avgVol: typeof data.avgVol === "number" && isFinite(data.avgVol) ? data.avgVol : null,
+      beta: typeof data.beta === "number" && isFinite(data.beta) ? data.beta : null,
+      peTTM: typeof data.peTTM === "number" && isFinite(data.peTTM) ? data.peTTM : null
+    }
+  }
+
+  function sanitizeRecommendations(data) {
+    if (!data || typeof data !== "object") return {}
+    var bar = null
+    if (data.bar && typeof data.bar === "object") {
+      bar = {
+        total: Number(data.bar.total) || 0,
+        pct_strongBuy: Number(data.bar.pct_strongBuy) || 0,
+        pct_buy: Number(data.bar.pct_buy) || 0,
+        pct_hold: Number(data.bar.pct_hold) || 0,
+        pct_sell: Number(data.bar.pct_sell) || 0,
+        pct_strongSell: Number(data.bar.pct_strongSell) || 0
+      }
+    }
+    return {
+      type: "recommendations",
+      symbol: String(data.symbol || "").slice(0, root.maxSymbolLength),
+      consensusLabel: String(data.consensusLabel || "").slice(0, root.maxFormatLength),
+      bar: bar
+    }
+  }
+
+  function sanitizeNews(data) {
+    if (!data || typeof data !== "object") return {}
+    var headlines = []
+    if (Array.isArray(data.headlines)) {
+      for (var i = 0; i < Math.min(data.headlines.length, root.maxHeadlineCount); i++) {
+        var h = data.headlines[i]
+        if (h && typeof h === "object") {
+          headlines.push({
+            headline: String(h.headline || "").slice(0, root.maxUrlLength),
+            source: String(h.source || "News").slice(0, root.maxIndustryLength),
+            url: String(h.url || "").slice(0, root.maxLongUrlLength),
+            datetime: Number(h.datetime) || 0
+          })
+        }
+      }
+    }
+    return {
+      type: "news",
+      symbol: String(data.symbol || "").slice(0, root.maxSymbolLength),
+      headlines: headlines
+    }
+  }
+
   function handleDaemonData(data) {
-    if (!data) return
-    var dataSym = String(data.symbol || "").toUpperCase()
-    var curSym  = String(activeSymbol || "").toUpperCase()
+    if (!data || typeof data !== "object") return
+    var dataSym = String(data.symbol || "").toUpperCase().slice(0, root.maxSymbolLength)
+    var curSym  = String(activeSymbol || "").toUpperCase().slice(0, root.maxSymbolLength)
     if (dataSym && curSym && dataSym !== curSym) return
 
-    if (data.type === "profile") profileData = data
-    else if (data.type === "recommendations") recsData = data
-    else if (data.type === "news") newsData = data
+    if (data.type === "profile") profileData = sanitizeProfile(data)
+    else if (data.type === "recommendations") recsData = sanitizeRecommendations(data)
+    else if (data.type === "news") newsData = sanitizeNews(data)
   }
 
   function requestDetail(symbol) {
@@ -156,6 +230,7 @@ Panel {
 
               Text {
                 text: "MARKET TRACKER"
+                textFormat: Text.PlainText
                 color: Qt.darker(root.contentForeground, 1.3)
                 font.family: root.contentFontFamily
                 font.pixelSize: Style.font.caption
@@ -190,6 +265,7 @@ Panel {
               Text {
                 width: parent.width
                 text: "No symbols configured"
+                textFormat: Text.PlainText
                 color: root.contentForeground
                 font.family: root.contentFontFamily
                 font.pixelSize: Style.font.subtitle
@@ -198,6 +274,7 @@ Panel {
               Text {
                 width: parent.width
                 text: "Run in your terminal:\nomarchy bar set tobiasz-p.market-tracker symbols SPY,QQQ,AAPL"
+                textFormat: Text.PlainText
                 color: Qt.darker(root.contentForeground, 1.35)
                 font.family: root.contentFontFamily
                 font.pixelSize: Style.font.bodySmall
@@ -234,6 +311,7 @@ Panel {
                     spacing: 2
                     Text {
                       text: "PORTFOLIO TOTAL"
+                      textFormat: Text.PlainText
                       color: Qt.darker(root.contentForeground, 1.4)
                       font.family: root.contentFontFamily
                       font.pixelSize: 10
@@ -241,6 +319,7 @@ Panel {
                     }
                     Text {
                       text: portfolioSummary ? (root.stealthMode ? "$••••••" : "$" + portfolioSummary.totalValue.toFixed(2)) : "$0.00"
+                      textFormat: Text.PlainText
                       color: root.contentForeground
                       font.family: root.contentFontFamily
                       font.pixelSize: 16
@@ -256,6 +335,7 @@ Panel {
                     Text {
                       id: portPnlText
                       anchors.centerIn: parent
+                      textFormat: Text.PlainText
                       text: {
                         if (!portfolioSummary) return ""
                         var sign = portfolioSummary.totalChange >= 0 ? "+" : ""
@@ -305,6 +385,7 @@ Panel {
                       }
                       Text {
                         text: modelData.symbol + " " + modelData.pct.toFixed(0) + "%"
+                        textFormat: Text.PlainText
                         color: Qt.darker(root.contentForeground, 1.4)
                         font.family: root.contentFontFamily
                         font.pixelSize: 10
@@ -390,6 +471,7 @@ Panel {
                         spacing: Style.space(6)
                         Text {
                           text: sym
+                          textFormat: Text.PlainText
                           color: root.contentForeground
                           font.family: root.contentFontFamily
                           font.pixelSize: 14
@@ -406,6 +488,7 @@ Panel {
                       Text {
                         width: parent.width
                         text: quote ? (quote.name || sym) : "Loading..."
+                        textFormat: Text.PlainText
                         color: Qt.darker(root.contentForeground, 1.45)
                         font.family: root.contentFontFamily
                         font.pixelSize: Style.font.caption
@@ -418,6 +501,7 @@ Panel {
                       Text {
                         anchors.right: parent.right
                         text: quote ? (quote.priceFmt || "---") : "---"
+                        textFormat: Text.PlainText
                         color: root.contentForeground
                         font.family: root.contentFontFamily
                         font.pixelSize: 14
@@ -433,6 +517,7 @@ Panel {
                           id: changeLabel
                           anchors.centerIn: parent
                           text: (pos ? "▲ " : "▼ ") + (quote ? (quote.changeFmt || "0.00%") : "---")
+                          textFormat: Text.PlainText
                           color: trendColor
                           font.family: root.contentFontFamily
                           font.pixelSize: Style.font.caption
@@ -484,6 +569,7 @@ Panel {
 
                     Text {
                       text: "Prev: " + (quote && quote.prevClose ? "$" + quote.prevClose.toFixed(2) : "---")
+                      textFormat: Text.PlainText
                       color: Qt.darker(root.contentForeground, 1.5)
                       font.family: root.contentFontFamily
                       font.pixelSize: Style.font.caption
@@ -492,6 +578,7 @@ Panel {
                     Text {
                       visible: quote && quote.dayHigh && quote.dayLow
                       text: "Day: $" + (quote && quote.dayLow ? quote.dayLow.toFixed(2) : "") + " – $" + (quote && quote.dayHigh ? quote.dayHigh.toFixed(2) : "")
+                      textFormat: Text.PlainText
                       color: Qt.darker(root.contentForeground, 1.5)
                       font.family: root.contentFontFamily
                       font.pixelSize: Style.font.caption
@@ -501,6 +588,7 @@ Panel {
 
                     Text {
                       text: isSelected ? "Active ▾" : "Details ▸"
+                      textFormat: Text.PlainText
                       color: isSelected ? Color.accent : Qt.darker(root.contentForeground, 1.5)
                       font.family: root.contentFontFamily
                       font.pixelSize: Style.font.caption
@@ -514,12 +602,14 @@ Panel {
                     spacing: Style.space(8)
                     Text {
                       text: quote && quote.shares ? (root.stealthMode ? "•• sh" : quote.shares.toFixed(1) + " sh") : ""
+                      textFormat: Text.PlainText
                       color: Qt.darker(root.contentForeground, 1.5)
                       font.family: root.contentFontFamily
                       font.pixelSize: Style.font.caption
                     }
                     Text {
                       text: quote && quote.portfolioValue ? (root.stealthMode ? "Val: $••••" : "Val: $" + quote.portfolioValue.toFixed(2)) : ""
+                      textFormat: Text.PlainText
                       color: root.contentForeground
                       font.family: root.contentFontFamily
                       font.pixelSize: Style.font.caption
@@ -532,6 +622,7 @@ Panel {
                         var chg = root.stealthMode ? "$••••" : "$" + quote.portfolioChange.toFixed(2)
                         return sign + chg
                       }
+                      textFormat: Text.PlainText
                       color: quote && quote.portfolioChange >= 0 ? "#22c55e" : "#ef4444"
                       font.family: root.contentFontFamily
                       font.pixelSize: Style.font.caption
@@ -570,6 +661,7 @@ Panel {
                   spacing: 2
                   Text {
                     text: activeSymbol + " Overview"
+                    textFormat: Text.PlainText
                     color: root.contentForeground
                     font.family: root.contentFontFamily
                     font.pixelSize: Style.font.subtitle
@@ -577,6 +669,7 @@ Panel {
                   }
                   Text {
                     text: profileData.name || (activeQuote ? activeQuote.name : activeSymbol)
+                    textFormat: Text.PlainText
                     color: Qt.darker(root.contentForeground, 1.4)
                     font.family: root.contentFontFamily
                     font.pixelSize: Style.font.caption
@@ -591,6 +684,7 @@ Panel {
                   Text {
                     anchors.right: parent.right
                     text: activeQuote ? activeQuote.priceFmt : ""
+                    textFormat: Text.PlainText
                     color: root.contentForeground
                     font.family: root.contentFontFamily
                     font.pixelSize: Style.font.subtitle
@@ -599,6 +693,7 @@ Panel {
                   Text {
                     anchors.right: parent.right
                     text: activeQuote ? activeQuote.changeFmt : ""
+                    textFormat: Text.PlainText
                     color: activeQuote && activeQuote.positive ? "#22c55e" : "#ef4444"
                     font.family: root.contentFontFamily
                     font.pixelSize: Style.font.caption
@@ -625,6 +720,7 @@ Panel {
                     width: parent.width
                     Text {
                       text: "52W Range"
+                      textFormat: Text.PlainText
                       color: Qt.darker(root.contentForeground, 1.4)
                       font.family: root.contentFontFamily
                       font.pixelSize: Style.font.caption
@@ -633,6 +729,7 @@ Panel {
                     Item { Layout.fillWidth: true }
                     Text {
                       text: "$" + rangeItem.curP.toFixed(2) + " (" + (rangeItem.pctPos * 100).toFixed(0) + "%)"
+                      textFormat: Text.PlainText
                       color: root.contentForeground
                       font.family: root.contentFontFamily
                       font.pixelSize: Style.font.caption
@@ -642,6 +739,7 @@ Panel {
                     Text {
                       visible: profileData.return52 !== undefined && profileData.return52 !== null
                       text: "52W: " + (profileData.return52 >= 0 ? "+" : "") + profileData.return52 + "%"
+                      textFormat: Text.PlainText
                       color: (profileData.return52 >= 0) ? "#22c55e" : "#ef4444"
                       font.family: root.contentFontFamily
                       font.pixelSize: Style.font.caption
@@ -689,6 +787,7 @@ Panel {
                     width: parent.width
                     Text {
                       text: "$" + (profileData.low52 ? profileData.low52.toFixed(2) : "---")
+                      textFormat: Text.PlainText
                       color: Qt.darker(root.contentForeground, 1.5)
                       font.family: root.contentFontFamily
                       font.pixelSize: 10
@@ -696,6 +795,7 @@ Panel {
                     Item { Layout.fillWidth: true }
                     Text {
                       text: "$" + (profileData.high52 ? profileData.high52.toFixed(2) : "---")
+                      textFormat: Text.PlainText
                       color: Qt.darker(root.contentForeground, 1.5)
                       font.family: root.contentFontFamily
                       font.pixelSize: 10
@@ -722,6 +822,7 @@ Panel {
                     Text {
                       anchors.horizontalCenter: parent.horizontalCenter
                       text: "10D Avg Vol"
+                      textFormat: Text.PlainText
                       color: Qt.darker(root.contentForeground, 1.5)
                       font.family: root.contentFontFamily
                       font.pixelSize: 10
@@ -729,6 +830,7 @@ Panel {
                     Text {
                       anchors.horizontalCenter: parent.horizontalCenter
                       text: profileData.avgVol ? profileData.avgVol + "M" : (activeQuote && activeQuote.volumeFmt ? activeQuote.volumeFmt : "---")
+                      textFormat: Text.PlainText
                       color: root.contentForeground
                       font.family: root.contentFontFamily
                       font.pixelSize: Style.font.bodySmall
@@ -748,6 +850,7 @@ Panel {
                     Text {
                       anchors.horizontalCenter: parent.horizontalCenter
                       text: profileData.peTTM ? "P/E Ratio" : "Beta"
+                      textFormat: Text.PlainText
                       color: Qt.darker(root.contentForeground, 1.5)
                       font.family: root.contentFontFamily
                       font.pixelSize: 10
@@ -755,6 +858,7 @@ Panel {
                     Text {
                       anchors.horizontalCenter: parent.horizontalCenter
                       text: profileData.peTTM ? String(profileData.peTTM) : (profileData.beta ? String(profileData.beta) : "---")
+                      textFormat: Text.PlainText
                       color: root.contentForeground
                       font.family: root.contentFontFamily
                       font.pixelSize: Style.font.bodySmall
@@ -774,6 +878,7 @@ Panel {
                     Text {
                       anchors.horizontalCenter: parent.horizontalCenter
                       text: profileData.marketCapFmt && profileData.marketCapFmt !== "—" ? "Market Cap" : "Asset Class"
+                      textFormat: Text.PlainText
                       color: Qt.darker(root.contentForeground, 1.5)
                       font.family: root.contentFontFamily
                       font.pixelSize: 10
@@ -781,6 +886,7 @@ Panel {
                     Text {
                       anchors.horizontalCenter: parent.horizontalCenter
                       text: profileData.marketCapFmt && profileData.marketCapFmt !== "—" ? profileData.marketCapFmt : (profileData.industry || "ETF / Fund")
+                      textFormat: Text.PlainText
                       color: root.contentForeground
                       font.family: root.contentFontFamily
                       font.pixelSize: Style.font.bodySmall
@@ -801,6 +907,7 @@ Panel {
                     Text {
                       anchors.horizontalCenter: parent.horizontalCenter
                       text: "Exchange / Currency"
+                      textFormat: Text.PlainText
                       color: Qt.darker(root.contentForeground, 1.5)
                       font.family: root.contentFontFamily
                       font.pixelSize: 10
@@ -808,6 +915,7 @@ Panel {
                     Text {
                       anchors.horizontalCenter: parent.horizontalCenter
                       text: (profileData.exchange ? profileData.exchange + " " : "") + (profileData.currency || "USD")
+                      textFormat: Text.PlainText
                       color: root.contentForeground
                       font.family: root.contentFontFamily
                       font.pixelSize: Style.font.bodySmall
@@ -843,6 +951,7 @@ Panel {
                       width: parent.width
                       Text {
                         text: "Analyst Consensus"
+                        textFormat: Text.PlainText
                         color: root.contentForeground
                         font.family: root.contentFontFamily
                         font.pixelSize: Style.font.caption
@@ -859,6 +968,7 @@ Panel {
                           id: cLabel
                           anchors.centerIn: parent
                           text: recsData.consensusLabel || ""
+                          textFormat: Text.PlainText
                           color: "white"
                           font.family: root.contentFontFamily
                           font.pixelSize: 10
@@ -890,6 +1000,7 @@ Panel {
                         delegate: Text {
                           Layout.fillWidth: true
                           text: modelData
+                          textFormat: Text.PlainText
                           horizontalAlignment: Text.AlignHCenter
                           color: Qt.darker(root.contentForeground, 1.5)
                           font.family: root.contentFontFamily
@@ -901,6 +1012,7 @@ Panel {
                     Text {
                       width: parent.width
                       text: "Aggregated 3rd-party analyst ratings via Finnhub. For informational purposes only; not investment advice."
+                      textFormat: Text.PlainText
                       wrapMode: Text.WordWrap
                       color: Qt.darker(root.contentForeground, 1.8)
                       font.family: root.contentFontFamily
@@ -924,6 +1036,7 @@ Panel {
 
                   Text {
                     text: "Recent News"
+                    textFormat: Text.PlainText
                     color: root.contentForeground
                     font.family: root.contentFontFamily
                     font.pixelSize: Style.font.caption
@@ -957,6 +1070,7 @@ Panel {
                         Text {
                           width: parent.width
                           text: modelData.headline || ""
+                          textFormat: Text.PlainText
                           wrapMode: Text.WordWrap
                           maximumLineCount: 2
                           elide: Text.ElideRight
@@ -971,6 +1085,7 @@ Panel {
                           spacing: Style.space(6)
                           Text {
                             text: modelData.source || "News"
+                            textFormat: Text.PlainText
                             color: Color.accent
                             font.family: root.contentFontFamily
                             font.pixelSize: 9
@@ -978,6 +1093,7 @@ Panel {
                           }
                           Text {
                             text: "• " + Model.timeAgo(modelData.datetime)
+                            textFormat: Text.PlainText
                             color: Qt.darker(root.contentForeground, 1.5)
                             font.family: root.contentFontFamily
                             font.pixelSize: 9
@@ -985,6 +1101,7 @@ Panel {
                           Item { Layout.fillWidth: true }
                           Text {
                             text: "Open ↗"
+                            textFormat: Text.PlainText
                             color: Color.accent
                             font.family: root.contentFontFamily
                             font.pixelSize: 9
@@ -1014,6 +1131,7 @@ Panel {
                     spacing: Style.space(4)
                     Text {
                       text: "Google Finance ↗"
+                      textFormat: Text.PlainText
                       color: Color.accent
                       font.family: root.contentFontFamily
                       font.pixelSize: Style.font.caption
@@ -1045,6 +1163,7 @@ Panel {
                     spacing: Style.space(4)
                     Text {
                       text: "Yahoo Finance ↗"
+                      textFormat: Text.PlainText
                       color: Color.accent
                       font.family: root.contentFontFamily
                       font.pixelSize: Style.font.caption
@@ -1076,6 +1195,7 @@ Panel {
                     spacing: Style.space(4)
                     Text {
                       text: "TradingView ↗"
+                      textFormat: Text.PlainText
                       color: Color.accent
                       font.family: root.contentFontFamily
                       font.pixelSize: Style.font.caption
@@ -1099,6 +1219,7 @@ Panel {
               Text {
                 width: parent.width
                 text: "Market data & indicators provided for informational purposes only; not financial or investment advice."
+                textFormat: Text.PlainText
                 wrapMode: Text.WordWrap
                 horizontalAlignment: Text.AlignHCenter
                 color: Qt.darker(root.contentForeground, 1.8)
