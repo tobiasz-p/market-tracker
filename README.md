@@ -161,4 +161,4 @@ $$\text{Score} = \frac{(2 \times \text{Strong Buy}) + (1 \times \text{Buy}) + (0
 
 ## License
 
-MIT License. Copyright (c) 2026.
+MIT License. Copyright (c) 2026 tobiasz-p.
