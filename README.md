@@ -67,16 +67,18 @@ Designed for screen-sharing, video streaming, and open office environments. Mask
 
 ---
 
-## Installation
+## Installation & Removal
 
 ```bash
-# Clone or copy this folder to your plugins directory, then enable:
+# Install and enable:
 omarchy plugin enable tobiasz-p.market-tracker
-```
 
-Or, if installing via the marketplace:
-```bash
+# Or if installing via marketplace:
 omarchy plugin install tobiasz-p.market-tracker
+
+# To disable or remove:
+omarchy plugin disable tobiasz-p.market-tracker
+omarchy plugin remove tobiasz-p.market-tracker
 ```
 
 ---
