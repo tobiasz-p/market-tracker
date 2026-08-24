@@ -10,6 +10,8 @@ require_relative "constants"
 class RecommendationFetcher < BaseFetcher
   TTL = 3600
   MAX_TRENDS = 4
+  MAX_PERIOD_LENGTH = 20
+  MAX_COUNT = 10_000
 
   REC_STRONG_BUY = "Strong Buy"
   REC_BUY = "Buy"
@@ -44,16 +46,22 @@ class RecommendationFetcher < BaseFetcher
   private
 
   def map_recommendations(items)
-    Array(items).first(MAX_TRENDS).map do |item|
+    Array(items).first(MAX_TRENDS).filter_map do |item|
+      next unless item.is_a?(Hash)
+
       {
-        period: item["period"],
-        strongBuy: item["strongBuy"].to_i,
-        buy: item["buy"].to_i,
-        hold: item["hold"].to_i,
-        sell: item["sell"].to_i,
-        strongSell: item["strongSell"].to_i
+        period: item["period"]&.to_s&.slice(0, MAX_PERIOD_LENGTH),
+        strongBuy: clamp_count(item["strongBuy"]),
+        buy: clamp_count(item["buy"]),
+        hold: clamp_count(item["hold"]),
+        sell: clamp_count(item["sell"]),
+        strongSell: clamp_count(item["strongSell"])
       }
     end
+  end
+
+  def clamp_count(val)
+    [val.to_i, 0].max.clamp(0, MAX_COUNT)
   end
 
   def compute_consensus(data)

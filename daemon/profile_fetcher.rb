@@ -13,6 +13,8 @@ class ProfileFetcher < BaseFetcher
   METRIC_TTL = 1800
   DEFAULT_INDUSTRY = "ETF / Fund"
   METRIC_PARAM = "all"
+  MAX_STRING_LENGTH = 100
+  MAX_SHORT_STRING_LENGTH = 50
 
   def fetch(symbol)
     profile_data = fetch_profile_data(symbol)
@@ -52,12 +54,12 @@ class ProfileFetcher < BaseFetcher
     {
       type: Constants::TYPE_PROFILE,
       symbol:,
-      name: resolve_company_name(symbol, data),
-      industry: data["finnhubIndustry"] || DEFAULT_INDUSTRY,
-      marketCap: data["marketCapitalization"],
-      currency: data["currency"] || Constants::DEFAULT_CURRENCY,
-      exchange: data["exchange"],
-      weburl: data["weburl"]
+      name: clean_string(resolve_company_name(symbol, data), MAX_STRING_LENGTH, ellipsis: true),
+      industry: clean_string(data["finnhubIndustry"] || DEFAULT_INDUSTRY, MAX_SHORT_STRING_LENGTH, ellipsis: true),
+      marketCap: round_field(data["marketCapitalization"]),
+      currency: clean_string(data["currency"] || Constants::DEFAULT_CURRENCY, 10, ellipsis: false),
+      exchange: clean_string(data["exchange"], 20, ellipsis: false),
+      weburl: clean_string(data["weburl"], 200, ellipsis: false)
     }
   end
 
@@ -73,6 +75,9 @@ class ProfileFetcher < BaseFetcher
   end
 
   def round_field(value)
-    value&.to_f&.round(2)
+    return nil if value.nil?
+
+    val = value.to_f
+    val.finite? ? val.round(2) : nil
   end
 end

@@ -8,6 +8,8 @@ require_relative "finnhub_client"
 
 # Abstract base class providing shared caching, URI encoding, and error encapsulation for domain fetchers.
 class BaseFetcher
+  ELLIPSIS = "..."
+  ELLIPSIS_LENGTH = ELLIPSIS.length
   NAME_CACHE_TTL = 86_400
   DEFAULT_HTTP_TTL = 60
   HTTP_OK = FinnhubClient::HTTP_OK
@@ -66,7 +68,21 @@ class BaseFetcher
   def extract_description_from_search(data, symbol)
     results = data&.fetch("result", []) || []
     match = results.find { |result| result["symbol"] == symbol } || results.first
-    match&.fetch("description", nil)
+    return nil unless match
+
+    clean_string(match["description"], 100)
+  end
+
+  def clean_string(val, max_len, ellipsis: true)
+    str = val.to_s.strip
+    return nil if str.empty?
+    return str if str.length <= max_len
+
+    if ellipsis && max_len > ELLIPSIS_LENGTH
+      "#{str.slice(0, max_len - ELLIPSIS_LENGTH)}#{ELLIPSIS}"
+    else
+      str.slice(0, max_len)
+    end
   end
 
   def current_timestamp

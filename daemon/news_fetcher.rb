@@ -11,6 +11,10 @@ class NewsFetcher < BaseFetcher
   MAX_ARTICLES = 10
   LOOKBACK_DAYS = 7
   DATE_FORMAT = "%Y-%m-%d"
+  MAX_HEADLINE_LENGTH = 200
+  MAX_SOURCE_LENGTH = 50
+  MAX_SUMMARY_LENGTH = 500
+  MAX_URL_LENGTH = 500
 
   def fetch(symbol)
     today = Date.today
@@ -38,15 +42,21 @@ class NewsFetcher < BaseFetcher
   private
 
   def extract_headlines(items)
-    Array(items).first(MAX_ARTICLES).map do |item|
-      {
-        headline: item["headline"],
-        source: item["source"],
-        url: item["url"],
-        summary: item["summary"],
-        image: item["image"],
-        datetime: item["datetime"]
-      }
+    Array(items).first(MAX_ARTICLES).filter_map do |item|
+      next unless item.is_a?(Hash)
+
+      build_headline_entry(item)
     end
+  end
+
+  def build_headline_entry(item)
+    {
+      headline: clean_string(item["headline"], MAX_HEADLINE_LENGTH, ellipsis: true),
+      source: clean_string(item["source"], MAX_SOURCE_LENGTH, ellipsis: true),
+      url: clean_string(item["url"], MAX_URL_LENGTH, ellipsis: false),
+      summary: clean_string(item["summary"], MAX_SUMMARY_LENGTH, ellipsis: true),
+      image: clean_string(item["image"], MAX_URL_LENGTH, ellipsis: false),
+      datetime: item["datetime"]&.to_i
+    }
   end
 end
