@@ -12,6 +12,7 @@ class FinnhubClient
   OPEN_TIMEOUT = 10
   READ_TIMEOUT = 15
   MAX_REDIRECTS = 3
+  MAX_BODY_BYTES = 1_048_576
 
   HTTP_OK = "200"
   HTTP_UNAUTHORIZED = "401"
@@ -53,11 +54,16 @@ class FinnhubClient
     "HTTP #{response.code}#{hint}"
   end
 
+  Response = Data.define(:code, :body)
+
   # Generic transport error for API failures.
   class Error < StandardError; end
 
   # Raised when the client exceeds the maximum allowed redirects.
   class RedirectLoopError < Error; end
+
+  # Raised when the response body exceeds the byte limit ceiling.
+  class ResponseBodyTooLargeError < Error; end
 
   private
 
@@ -68,10 +74,30 @@ class FinnhubClient
     http = build_http_client(uri)
     request = build_http_request(uri)
 
-    response = http.request(request)
-    return response unless response.is_a?(Net::HTTPRedirection)
+    http.request(request) do |response|
+      return handle_redirect(uri, response, redirects_left) if response.is_a?(Net::HTTPRedirection)
 
-    handle_redirect(uri, response, redirects_left)
+      stream_response_body(response)
+    end
+  end
+
+  def stream_response_body(response)
+    bytes_read = 0
+    body = String.new(encoding: Encoding::UTF_8)
+    if response.respond_to?(:read_body)
+      response.read_body do |chunk|
+        bytes_read += chunk.bytesize
+        if bytes_read > MAX_BODY_BYTES
+          raise ResponseBodyTooLargeError, "Response body exceeded limit of #{MAX_BODY_BYTES} bytes"
+        end
+
+        body << chunk
+      end
+    else
+      body = response.body.to_s
+    end
+
+    Response.new(code: response.code.to_s, body:)
   end
 
   def build_http_client(uri)
@@ -93,7 +119,9 @@ class FinnhubClient
 
   def handle_redirect(uri, response, redirects_left)
     target = response["location"] ? URI.join(uri, response["location"]) : nil
-    return response unless target&.host == uri.host && target.scheme == HTTPS_SCHEME
+    unless target&.host == uri.host && target.scheme == HTTPS_SCHEME
+      return Response.new(code: response.code.to_s, body: "")
+    end
     raise RedirectLoopError if redirects_left.zero?
 
     query_string = target.query ? "?#{target.query}" : ""

@@ -42,7 +42,7 @@ RSpec.describe FinnhubClient do
 
     let(:path) { "/quote?symbol=VOO" }
     let(:http_double) { instance_double(Net::HTTP) }
-    let(:success_response) { instance_double(Net::HTTPOK, code: "200") }
+    let(:success_response) { instance_double(Net::HTTPOK, code: "200", body: '{"c":123.45}') }
 
     before do
       allow(Net::HTTP).to receive(:new).and_return(http_double)
@@ -50,7 +50,8 @@ RSpec.describe FinnhubClient do
       allow(http_double).to receive(:verify_mode=)
       allow(http_double).to receive(:open_timeout=)
       allow(http_double).to receive(:read_timeout=)
-      allow(http_double).to receive(:request).and_return(success_response)
+      allow(http_double).to receive(:request).and_yield(success_response)
+      allow(success_response).to receive(:read_body).and_yield('{"c":123.45}')
     end
 
     it "attaches authorization token header" do
@@ -58,6 +59,38 @@ RSpec.describe FinnhubClient do
       expect(http_double).to have_received(:request).with(
         an_object_having_attributes(to_hash: hash_including("x-finnhub-token" => ["secret_key"]))
       )
+    end
+
+    it "streams and populates the response body" do
+      expect(get_request.body).to eq('{"c":123.45}')
+    end
+
+    context "when response body exceeds MAX_BODY_BYTES ceiling" do
+      let(:oversized_chunk) { "A" * (1_048_576 + 10) }
+
+      before do
+        allow(success_response).to receive(:read_body).and_yield(oversized_chunk)
+      end
+
+      it "raises ResponseBodyTooLargeError" do
+        expect { get_request }.to raise_error(described_class::ResponseBodyTooLargeError)
+      end
+    end
+
+    context "when response redirects to an untrusted host" do
+      let(:redirect_response) do
+        instance_double(Net::HTTPMovedPermanently, code: "301", is_a?: true).tap do |res|
+          allow(res).to receive(:[]).with("location").and_return("https://evil.com/quote")
+        end
+      end
+
+      before do
+        allow(http_double).to receive(:request).and_yield(redirect_response)
+      end
+
+      it "rejects cross-host redirection and returns empty body" do
+        expect(get_request.body).to eq("")
+      end
     end
   end
 end
