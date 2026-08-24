@@ -9,6 +9,37 @@ Live ETF & stock price tracker in your Omarchy bar. Displays a real-time rotatin
 
 ---
 
+## Showcase
+
+### 1. Minimal Top Bar Widget
+A compact, non-intrusive status bar widget displaying real-time ticker prices, daily percentage deltas, and performance-colored trend underlines.
+
+<p align="center">
+  <img src="docs/assets/bar-widget.png" alt="Top Bar Widget" />
+</p>
+
+### 2. Interactive Analytics Dashboard (Full View)
+Clicking the bar widget expands the slide-out financial dashboard:
+- **Portfolio Summary & Allocation**: Real-time total portfolio balance, daily P&L, and asset allocation breakdown.
+- **Watchlist Cards**: Live sparkline mini-charts, current prices, daily change, and position values.
+- **52-Week Performance Slider**: Visual bullet range slider with price pin marker, distance from 52-week high, and 1-year return.
+- **Analyst Consensus Distribution**: Wall Street Buy/Hold/Sell rating distribution bar with standardized consensus badge.
+- **Financial Metrics**: High-density snapshot of 10-day volume, P/E ratio, Beta, and market capitalization.
+- **Live News Feed**: Recent headline feed with relative timestamps and 1-click links to full articles.
+
+<p align="center">
+  <img src="docs/assets/dashboard-full.png" alt="Full Analytics Dashboard" width="480" />
+</p>
+
+### 3. Privacy-First Stealth Mode
+Designed for screen-sharing, video streaming, and open office environments. Masks sensitive dollar totals, portfolio valuations, and share quantities with `••••` while preserving relative percentage market movements.
+
+<p align="center">
+  <img src="docs/assets/dashboard-stealth.png" alt="Stealth Mode Dashboard" width="480" />
+</p>
+
+---
+
 > [!WARNING]
 > ### Disclaimer & Non-Investment Advice
 > This plugin and all displayed market data, charts, indicators, and analyst summaries are provided **strictly for informational and educational purposes only**. Nothing contained in this application constitutes investment, financial, legal, or tax advice. No recommendation or endorsement is made regarding the purchase or sale of any security or financial instrument. Always conduct your own independent research and consult a licensed financial advisor before making any investment decisions.
