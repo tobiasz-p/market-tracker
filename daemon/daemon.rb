@@ -211,6 +211,8 @@ class Daemon
 
         perform_detail_fetch(symbol)
       end
+    rescue StandardError => e
+      logger.error("Detail worker error: #{e.message}")
     end
     thread.abort_on_exception = false
   end
@@ -223,6 +225,8 @@ class Daemon
 
         process_stdin_line(line)
       end
+    rescue StandardError => e
+      logger.error("Stdin thread error: #{e.message}")
     end
     thread.abort_on_exception = false
   end

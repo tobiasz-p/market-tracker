@@ -77,6 +77,26 @@ RSpec.describe FinnhubClient do
       end
     end
 
+    context "when response redirects to the same host" do
+      let(:redirect_response) do
+        instance_double(Net::HTTPMovedPermanently, code: "301", is_a?: true).tap do |res|
+          allow(res).to receive(:[]).with("location").and_return("https://finnhub.io/api/v1/quote?symbol=VOO&normalized=1")
+        end
+      end
+
+      before do
+        call_count = 0
+        allow(http_double).to receive(:request) do |&block|
+          call_count += 1
+          block.call(call_count == 1 ? redirect_response : success_response)
+        end
+      end
+
+      it "follows same-host redirect and returns response body" do
+        expect(get_request.body).to eq('{"c":123.45}')
+      end
+    end
+
     context "when response redirects to an untrusted host" do
       let(:redirect_response) do
         instance_double(Net::HTTPMovedPermanently, code: "301", is_a?: true).tap do |res|

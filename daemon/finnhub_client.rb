@@ -8,7 +8,7 @@ require "uri"
 class FinnhubClient
   HOST = "finnhub.io"
   API_BASE = "/api/v1"
-  USER_AGENT = "omarchy-market-tracker/1.0.0"
+  USER_AGENT = "omarchy-market-tracker/1.0.2"
   OPEN_TIMEOUT = 10
   READ_TIMEOUT = 15
   MAX_REDIRECTS = 3
@@ -70,7 +70,8 @@ class FinnhubClient
   attr_reader :api_key
 
   def get_with_redirects(path, redirects_left: MAX_REDIRECTS)
-    uri = URI("#{HTTPS_SCHEME}://#{HOST}#{API_BASE}#{path}")
+    full_path = path.start_with?(API_BASE) ? path : "#{API_BASE}#{path}"
+    uri = URI("#{HTTPS_SCHEME}://#{HOST}#{full_path}")
     http = build_http_client(uri)
     request = build_http_request(uri)
 
