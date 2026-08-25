@@ -13,7 +13,6 @@ BarWidget {
   readonly property string apiKeySetting: {
     var fromEnv = (Quickshell.env("FINNHUB_API_KEY") || "").trim()
     if (fromEnv.length > 0) return fromEnv
-    if (envFileKey.length > 0) return envFileKey
     return String(setting("apiKey", "") || "").trim()
   }
   readonly property int refreshSeconds: Math.max(15, parseInt(setting("refreshSeconds", 60), 10) || 60)
@@ -65,35 +64,6 @@ BarWidget {
   function forceRefresh() { sendCommand({ action: "refresh" }); root.fetching = true }
   function nextSymbol() { if (symbolList.length > 1) root.currentIndex = (root.currentIndex + 1) % symbolList.length }
   function fetchDetail(symbol) { sendCommand({ action: "fetch_detail", symbol: symbol }) }
-
-  function parseDotEnv(text) {
-    var lines = String(text || "").split(/\r?\n/)
-    for (var i = 0; i < lines.length; i++) {
-      var line = lines[i].trim()
-      if (!line || line.charAt(0) === "#") continue
-      var eq = line.indexOf("=")
-      if (eq <= 0) continue
-      if (line.slice(0, eq).trim() !== "FINNHUB_API_KEY") continue
-      var v = line.slice(eq + 1).trim()
-      var n = v.length
-      if (n >= 2 && ((v.charAt(0) === '"' && v.charAt(n - 1) === '"') ||
-                     (v.charAt(0) === "'" && v.charAt(n - 1) === "'")))
-        v = v.slice(1, -1)
-      return v.trim()
-    }
-    return ""
-  }
-
-  FileView {
-    id: dotEnvFile
-    path: Qt.resolvedUrl(".env")
-    blockLoading: true
-    watchChanges: true
-    printErrors: false
-    onLoaded: root.envFileKey = root.parseDotEnv(dotEnvFile.text)
-    onFileChanged: root.envFileKey = root.parseDotEnv(dotEnvFile.text)
-  }
-  property string envFileKey: ""
 
   function sanitizeQuote(data) {
     if (!data || typeof data !== "object") return null
@@ -219,6 +189,7 @@ BarWidget {
     id: fetchProc
     command: ["ruby", root.daemonPath]
     environment: ({
+      FINNHUB_API_KEY: root.apiKeySetting,
       SYMBOLS: root.symbolsSetting, REFRESH_SECONDS: String(root.refreshSeconds),
       ROTATE_SECONDS: String(root.rotateSeconds), SHOW_PRICE: String(root.showPrice),
       DELTA_FORMAT: root.deltaFormat,

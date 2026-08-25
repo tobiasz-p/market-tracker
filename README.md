@@ -90,6 +90,7 @@ All settings use `omarchy bar set`:
 | Setting | Default | Description |
 |---|---|---|
 | `symbols` | *(required)* | Comma-separated ticker symbols (e.g. `NVDA,GLD,IBIT` or `NVDA:10,GLD:5` for shares) |
+| `apiKey` | `""` | Optional Finnhub API key (recommended: export `FINNHUB_API_KEY`) |
 | `refreshSeconds` | `60` | How often to fetch new data (minimum: `15`, maximum: `300`) |
 | `rotateSeconds` | `5` | How often the top bar cycles to the next ticker (`0` = pin first) |
 | `showPrice` | `true` | Show price in top bar (`"NVDA $214.72 -0.98%"` vs `"NVDA -0.98%"`) |
@@ -102,12 +103,14 @@ All settings use `omarchy bar set`:
 ### Quick Start
 
 1. Grab a free key at [finnhub.io/register](https://finnhub.io/register) — shown on your dashboard right after signup.
-2. Put it in a `.env` file next to the plugin so it never touches any shared configuration:
+2. Configure your API key via environment variable (recommended) or widget settings:
 
 ```bash
-cd ~/.config/omarchy/plugins/tobiasz-p.market-tracker
-cp .env.example .env   # add your key after FINNHUB_API_KEY=
-omarchy restart shell
+# Option A (Recommended): Export in ~/.bashrc or ~/.zshrc
+export FINNHUB_API_KEY="your_finnhub_api_key"
+
+# Option B: via Omarchy bar settings
+omarchy bar set tobiasz-p.market-tracker apiKey "your_finnhub_api_key"
 ```
 
 3. Set your watchlist symbols (and optional portfolio share counts):
