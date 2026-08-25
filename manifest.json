@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "tobiasz-p.market-tracker",
   "name": "Market Tracker",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "author": "tobiasz-p",
   "license": "MIT",
   "description": "Feature-packed market tracker: live quotes with sparklines, watchlist with portfolio tracking, analyst recommendations, and news.",
