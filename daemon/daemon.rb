@@ -21,7 +21,7 @@ require_relative "recommendation_fetcher"
 class Daemon
   TICKER_CYCLE_DELAY = 0.2
   DEFAULT_CACHE_TTL = 60
-  NO_KEY_MESSAGE = "No API key set -- add FINNHUB_API_KEY to plugin .env or export it"
+  NO_KEY_MESSAGE = "No API key set -- export FINNHUB_API_KEY or set apiKey setting"
   NO_SYMBOLS_MESSAGE = "No symbols configured"
   ALL_SYMBOLS_WILDCARD = "*"
 

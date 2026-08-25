@@ -9,24 +9,6 @@
 require_relative "daemon"
 require_relative "app_logger"
 
-def load_dotenv(path = File.join(__dir__, "..", ".env"))
-  return unless File.readable?(path)
-
-  File.foreach(path) do |line|
-    line.strip!
-    next if line.empty? || line.start_with?("#")
-
-    k, v = line.split("=", 2)
-    next unless k && v
-
-    key = k.strip
-    val = v.strip.delete_prefix('"').delete_suffix('"').delete_prefix("'").delete_suffix("'")
-    ENV[key] = val if ENV[key].to_s.empty?
-  end
-end
-
-load_dotenv
-
 config = Config.new
 logger = AppLogger.new
 
